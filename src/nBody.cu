@@ -1,6 +1,6 @@
 #include "nBody.h"
 
-__global__ void sinewave(nBody::point *points, unsigned int numPoints, float time) {
+__global__ void step(nBody::point *points, unsigned int numPoints, float time) {
   const float freq = 4.0f;
   const size_t stride = gridDim.x * blockDim.x;
 
@@ -12,20 +12,17 @@ __global__ void sinewave(nBody::point *points, unsigned int numPoints, float tim
     const float u = ((2.0f * x) / numPoints) - 1.0f;
     const float v = ((2.0f * y) / numPoints) - 1.0f;
 
-    const float w = 0.5f * sinf(u * freq + time) * cosf(v * freq + time);
+    const float w = 0.05f * sinf(u * freq + time) * cosf(v * freq + time);
 
 
     // Store this new value
-    points[tid].x = w;
-    // points[tid].y = -u;
-    // points[tid].z = w;
-    points[tid].size = (tid+1)*10;
+    points[tid].x += w;
+    points[tid].y += w;
   }
 }
 
-nBody::nBody(size_t _numPoints, point* _points) : numPoints(_numPoints) {
-  points = _points;
-}
+nBody::nBody(size_t _numPoints, point* _points) : numPoints(_numPoints), points(_points), pointsTemp(_points) {}
+nBody::~nBody() { points = NULL; }
 
 void nBody::initCudaLaunchConfig(int device) {
   cudaDeviceProp prop = {};
@@ -36,9 +33,9 @@ void nBody::initCudaLaunchConfig(int device) {
   m_threads = prop.warpSize;
 
   // Use  occupancy calculator and fill the gpu as best as we can
-  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&m_blocks, sinewave, prop.warpSize, 0));
+  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&m_blocks, step, prop.warpSize, 0));
   m_blocks *= prop.multiProcessorCount;
-
+  
   // Clamp the blocks to the minimum needed for this height/width
   m_blocks = std::min(m_blocks, (int)((numPoints + m_threads - 1) / m_threads));
 }
@@ -66,9 +63,7 @@ int nBody::initCuda(uint8_t *vkDeviceUUID, size_t UUID_SIZE) {
       if (ret == 0) {
         checkCudaErrors(cudaSetDevice(current_device));
         checkCudaErrors(cudaGetDeviceProperties(&deviceProp, current_device));
-        printf("GPU Device %d: \"%s\" with compute capability %d.%d\n\n",
-               current_device, deviceProp.name, deviceProp.major,
-               deviceProp.minor);
+        printf("GPU Device %d: \"%s\" with compute capability %d.%d\n\n", current_device, deviceProp.name, deviceProp.major, deviceProp.minor);
 
         return current_device;
       }
@@ -89,13 +84,15 @@ int nBody::initCuda(uint8_t *vkDeviceUUID, size_t UUID_SIZE) {
   return -1;
 }
 
-nBody::~nBody() { points = NULL; }
-
 void nBody::initSimulation(point* _points) {
   points = _points;
 }
 
+void nBody::initPoints() {
+  checkCudaErrors(cudaMemcpy(points, pointsTemp, numPoints*sizeof(point), cudaMemcpyHostToDevice));
+}
+
 void nBody::stepSimulation(float time, cudaStream_t stream) {
-  sinewave<<<m_blocks, m_threads, 0, stream>>>(points, numPoints, time);
+  step<<<m_blocks, m_threads, 0, stream>>>(points, numPoints, time);
   getLastCudaError("Failed to launch CUDA simulation");
 }

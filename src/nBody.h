@@ -18,10 +18,12 @@ class nBody {
         alignas(4) float size = 20;
     };
     point *points;
+    point* pointsTemp;
 
     nBody(size_t _numPoints, point *_points);
     ~nBody();
     void initSimulation(point *_points);
+    void initPoints();
     void stepSimulation(float time, cudaStream_t stream = 0);
     void initCudaLaunchConfig(int device);
     int initCuda(uint8_t *vkDeviceUUID, size_t UUID_SIZE);

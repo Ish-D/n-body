@@ -10,8 +10,9 @@ layout(location = 0) in vec4 point;
 layout(location = 0) out vec3 fragColor;
 
 void main() {
+    
     gl_Position = ubo.modelViewProj*vec4(point.xyz, 1.0);
-    gl_PointSize = point.w;
+    gl_PointSize = 2*point.w * (1/distance(gl_Position, vec4(point.xyz, 1.0)));
     float color = (1.0f);
     fragColor = vec3(color);
 }

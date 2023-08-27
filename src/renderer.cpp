@@ -672,6 +672,7 @@ auto Renderer::initInterop() -> void {
                          vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
 
     sim.initSimulation(points);
+
     {
         void *data;
         vk::Buffer stagingBuffer;
@@ -765,8 +766,10 @@ auto Renderer::drawFrame() -> void {
     float currentTime      = glfwGetTime();
     float time             = currentTime - startTime;
 
-    if (currentFrame == 0)
+    if (currentFrame == 0) {
         lastTime = startTime;
+        sim.initPoints();
+    }
 
     float frame_time = currentTime - lastTime;
 

@@ -11,7 +11,12 @@ add_executable(${PROJECT_NAME} src/main.cpp
                                src/renderer.cpp 
                                src/nBody.cu)
 
+target_compile_options(nBody PRIVATE -Wall -Wextra -O3)
 
-target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan)
-target_link_libraries(${PROJECT_NAME} glfw)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CUDA_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw)
+target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)
+
+find_library(SHADERC_LIB_RELEASE shaderc_combined $ENV{VULKAN_SDK}/Lib)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${SHADERC_LIB_RELEASE})
+

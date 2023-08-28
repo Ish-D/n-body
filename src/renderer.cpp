@@ -150,7 +150,9 @@ auto Renderer::createDevice() -> void {
                                                        .enabledExtensionCount   = static_cast<uint32_t>(deviceExtensions.size()),
                                                        .ppEnabledExtensionNames = deviceExtensions.data()};
 
-    const vk::StructureChain<vk::DeviceCreateInfo, vk::PhysicalDeviceDynamicRenderingFeatures, vk::PhysicalDeviceTimelineSemaphoreFeatures,
+    const vk::StructureChain<vk::DeviceCreateInfo,
+                             vk::PhysicalDeviceDynamicRenderingFeatures,
+                             vk::PhysicalDeviceTimelineSemaphoreFeatures,
                              vk::PhysicalDeviceDescriptorIndexingFeatures>
         chain = {deviceCreateInfo, dynamicRenderingFeatures, timelineSemaphoreFeatures, descriptorIndexingFeatures};
 
@@ -292,16 +294,29 @@ static std::string readFile(const std::string filename) {
 auto getVertexDescriptions(std::vector<vk::VertexInputBindingDescription> &vertexBindingDescriptions,
                            std::vector<vk::VertexInputAttributeDescription> &vertexAttributeDescriptions) -> void {
     vertexBindingDescriptions.resize(1);
-    vertexAttributeDescriptions.resize(1);
+    vertexAttributeDescriptions.resize(3);
 
+    // x,y,z,size
     vertexBindingDescriptions[0].binding   = 0;
-    vertexBindingDescriptions[0].stride    = sizeof(nBody::point);
+    vertexBindingDescriptions[0].stride    = sizeof(Point);
     vertexBindingDescriptions[0].inputRate = vk::VertexInputRate::eVertex;
 
     vertexAttributeDescriptions[0].binding  = 0;
     vertexAttributeDescriptions[0].location = 0;
-    vertexAttributeDescriptions[0].format   = vk::Format::eR32G32B32A32Sfloat;
+    vertexAttributeDescriptions[0].format   = vk::Format::eR32G32B32Sfloat;
     vertexAttributeDescriptions[0].offset   = 0;
+
+    // color
+    vertexAttributeDescriptions[1].binding  = 0;
+    vertexAttributeDescriptions[1].location = 1;
+    vertexAttributeDescriptions[1].format   = vk::Format::eR32G32B32Sfloat;
+    vertexAttributeDescriptions[1].offset   = 3 * sizeof(float);
+
+    // size
+    vertexAttributeDescriptions[2].binding  = 0;
+    vertexAttributeDescriptions[2].location = 2;
+    vertexAttributeDescriptions[2].format   = vk::Format::eR32Sfloat;
+    vertexAttributeDescriptions[2].offset   = 6 * sizeof(float);
 }
 
 auto Renderer::createPipeline() -> void {
@@ -371,12 +386,13 @@ auto Renderer::createPipeline() -> void {
         .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = false, .minSampleShading = 1.0};
 
     auto colorBlendAttachment =
-        vk::PipelineColorBlendAttachmentState{.srcColorBlendFactor = vk::BlendFactor::eOne,
-                                              .dstColorBlendFactor = vk::BlendFactor::eZero,
+        vk::PipelineColorBlendAttachmentState{.blendEnable         = true,
+                                              .srcColorBlendFactor = vk::BlendFactor::eSrcAlpha,
+                                              .dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
                                               .colorBlendOp        = vk::BlendOp::eAdd,
-                                              .srcAlphaBlendFactor = vk::BlendFactor::eOne,
-                                              .dstAlphaBlendFactor = vk::BlendFactor::eZero,
-                                              .alphaBlendOp        = vk::BlendOp::eAdd,
+                                              .srcAlphaBlendFactor = vk::BlendFactor::eSrcAlpha,
+                                              .dstAlphaBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
+                                              .alphaBlendOp        = vk::BlendOp::eSubtract,
                                               .colorWriteMask      = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
                                                                 vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
 
@@ -396,8 +412,8 @@ auto Renderer::createPipeline() -> void {
 
     pipelineLayout = device.createPipelineLayout(vk::PipelineLayoutCreateInfo{.setLayoutCount = 1, .pSetLayouts = &descriptorSetLayout}, nullptr);
 
-    auto depthFormat = findSupportedFormat({vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint}, vk::ImageTiling::eOptimal,
-                                           vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+    auto depthFormat = findSupportedFormat(
+        {vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint}, vk::ImageTiling::eOptimal, vk::FormatFeatureFlagBits::eDepthStencilAttachment);
 
     auto pipelineRenderingInfo = vk::PipelineRenderingCreateInfo{.colorAttachmentCount    = 1,
                                                                  .pColorAttachmentFormats = &swapChainFormat.format,
@@ -434,10 +450,17 @@ auto Renderer::createCommandPool() -> void {
 }
 
 auto Renderer::createDepthResources() -> void {
-    const auto depthFormat = findSupportedFormat({vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint}, vk::ImageTiling::eOptimal,
-                                                 vk::FormatFeatureFlagBits::eDepthStencilAttachment);
-    createImage(swapChainExtent.width, swapChainExtent.height, 1, depthFormat, vk::ImageTiling::eOptimal,
-                vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, depthImage, depthMemory);
+    const auto depthFormat = findSupportedFormat(
+        {vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint}, vk::ImageTiling::eOptimal, vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+    createImage(swapChainExtent.width,
+                swapChainExtent.height,
+                1,
+                depthFormat,
+                vk::ImageTiling::eOptimal,
+                vk::ImageUsageFlagBits::eDepthStencilAttachment,
+                vk::MemoryPropertyFlagBits::eDeviceLocal,
+                depthImage,
+                depthMemory);
     depthImageView = device.createImageView(vk::ImageViewCreateInfo{
         .image            = depthImage,
         .viewType         = vk::ImageViewType::e2D,
@@ -452,8 +475,10 @@ auto Renderer::createUniformBuffers() -> void {
     uniformBuffersMemory.resize(swapChainImages.size());
 
     for (size_t i = 0; i < uniformBuffers.size(); i++) {
-        createBuffer(sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer,
-                     vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, uniformBuffers[i],
+        createBuffer(sizeof(UniformBufferObject),
+                     vk::BufferUsageFlagBits::eUniformBuffer,
+                     vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+                     uniformBuffers[i],
                      uniformBuffersMemory[i]);
     }
 }
@@ -524,8 +549,15 @@ auto Renderer::createCommandBuffers() -> void {
                                                           .newLayout        = vk::ImageLayout::eColorAttachmentOptimal,
                                                           .image            = swapChainImages[i],
                                                           .subresourceRange = subresourceRange};
-        commandBuffers[i].pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eTopOfPipe, {}, 0, nullptr, 0,
-                                          nullptr, 1, &imageMemoryBarrier1);
+        commandBuffers[i].pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                                          vk::PipelineStageFlagBits::eTopOfPipe,
+                                          {},
+                                          0,
+                                          nullptr,
+                                          0,
+                                          nullptr,
+                                          1,
+                                          &imageMemoryBarrier1);
 
         auto depthMemoryBarrier1 = vk::ImageMemoryBarrier{.srcAccessMask    = vk::AccessFlagBits::eDepthStencilAttachmentWrite,
                                                           .oldLayout        = vk::ImageLayout::eUndefined,
@@ -533,8 +565,14 @@ auto Renderer::createCommandBuffers() -> void {
                                                           .image            = depthImage,
                                                           .subresourceRange = depthRange};
         commandBuffers[i].pipelineBarrier(vk::PipelineStageFlagBits::eLateFragmentTests | vk::PipelineStageFlagBits::eEarlyFragmentTests,
-                                          vk::PipelineStageFlagBits::eLateFragmentTests | vk::PipelineStageFlagBits::eEarlyFragmentTests, {}, 0,
-                                          nullptr, 0, nullptr, 1, &depthMemoryBarrier1);
+                                          vk::PipelineStageFlagBits::eLateFragmentTests | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+                                          {},
+                                          0,
+                                          nullptr,
+                                          0,
+                                          nullptr,
+                                          1,
+                                          &depthMemoryBarrier1);
 
         auto colorAttachment = vk::RenderingAttachmentInfo{.imageView   = swapChainImageViews[i],
                                                            .imageLayout = vk::ImageLayout::eAttachmentOptimal,
@@ -566,8 +604,15 @@ auto Renderer::createCommandBuffers() -> void {
                                                           .newLayout        = vk::ImageLayout::ePresentSrcKHR,
                                                           .image            = swapChainImages[i],
                                                           .subresourceRange = subresourceRange};
-        commandBuffers[i].pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eBottomOfPipe, {}, 0, nullptr,
-                                          0, nullptr, 1, &imageMemoryBarrier2);
+        commandBuffers[i].pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                                          vk::PipelineStageFlagBits::eBottomOfPipe,
+                                          {},
+                                          0,
+                                          nullptr,
+                                          0,
+                                          nullptr,
+                                          1,
+                                          &imageMemoryBarrier2);
         commandBuffers[i].end();
     }
 }
@@ -665,11 +710,15 @@ auto Renderer::initInterop() -> void {
     sim.initCudaLaunchConfig(cudaDevice);
     checkCudaErrors(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
 
-    createExternalBuffer(sim.getNumPoints() * sizeof(*points), vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
-                         vk::MemoryPropertyFlagBits::eDeviceLocal, vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd, vertexBuffer, vertexMemory);
+    createExternalBuffer(sim.getNumPoints() * sizeof(*points),
+                         vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
+                         vk::MemoryPropertyFlagBits::eDeviceLocal,
+                         vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd,
+                         vertexBuffer,
+                         vertexMemory);
 
-    importExternalMemory((void **)&points, cudaVertMem, vertexMemory, sim.getNumPoints() * sizeof(*points),
-                         vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
+    importExternalMemory(
+        (void **)&points, cudaVertMem, vertexMemory, sim.getNumPoints() * sizeof(*points), vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
 
     sim.initSimulation(points);
 
@@ -679,8 +728,11 @@ auto Renderer::initInterop() -> void {
         vk::DeviceMemory stagingMemory;
         vk::DeviceSize bufferSize = sim.getNumPoints() * sizeof(*points);
 
-        createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc,
-                     vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingMemory);
+        createBuffer(bufferSize,
+                     vk::BufferUsageFlagBits::eTransferSrc,
+                     vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+                     stagingBuffer,
+                     stagingMemory);
         if (device.mapMemory(stagingMemory, 0, bufferSize, {}, &data) != vk::Result::eSuccess)
             throw std::runtime_error("Failed to map staging buffer memory");
         copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
@@ -689,14 +741,20 @@ auto Renderer::initInterop() -> void {
             indices.push_back(i);
 
         bufferSize = sizeof(indices[0]) * indices.size();
-        createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc,
-                     vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingMemory);
+        createBuffer(bufferSize,
+                     vk::BufferUsageFlagBits::eTransferSrc,
+                     vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+                     stagingBuffer,
+                     stagingMemory);
         if (device.mapMemory(stagingMemory, 0, bufferSize, {}, &data) != vk::Result::eSuccess)
             throw std::runtime_error("Failed to map staging buffer memory");
         memcpy(data, indices.data(), ((size_t)bufferSize));
 
-        createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
-                     vk::MemoryPropertyFlagBits::eDeviceLocal, indexBuffer, indexMemory);
+        createBuffer(bufferSize,
+                     vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
+                     vk::MemoryPropertyFlagBits::eDeviceLocal,
+                     indexBuffer,
+                     indexMemory);
         copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
         device.destroyBuffer(stagingBuffer);
@@ -830,8 +888,15 @@ auto Renderer::endSingleTimeCommands(std::vector<vk::CommandBuffer> commandBuffe
     device.freeCommandBuffers(commandPool, 1, commandBuffer.data());
 }
 
-auto Renderer::createImage(uint32_t width, uint32_t height, uint32_t mips, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage,
-                           vk::MemoryPropertyFlags properties, vk::Image &image, vk::DeviceMemory &imageMemory) -> void {
+auto Renderer::createImage(uint32_t width,
+                           uint32_t height,
+                           uint32_t mips,
+                           vk::Format format,
+                           vk::ImageTiling tiling,
+                           vk::ImageUsageFlags usage,
+                           vk::MemoryPropertyFlags properties,
+                           vk::Image &image,
+                           vk::DeviceMemory &imageMemory) -> void {
     const auto imageExtent = vk::Extent3D{static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
     const auto imageinfo   = vk::ImageCreateInfo{.imageType     = vk::ImageType::e2D,
                                                  .format        = format,
@@ -856,8 +921,8 @@ auto Renderer::createImage(uint32_t width, uint32_t height, uint32_t mips, vk::F
     device.bindImageMemory(image, imageMemory, 0);
 }
 
-auto Renderer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer,
-                            vk::DeviceMemory &bufferMemory) -> void {
+auto Renderer::createBuffer(
+    vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory) -> void {
     buffer = device.createBuffer(vk::BufferCreateInfo{.size = size, .usage = usage, .sharingMode = vk::SharingMode::eExclusive});
 
     const auto memoryRequirements = device.getBufferMemoryRequirements(buffer);
@@ -912,9 +977,12 @@ auto Renderer::createExternalSemaphore(vk::Semaphore &semaphore, vk::ExternalSem
         throw std::runtime_error("Failed to create Cuda-Vulkan interop semaphore");
 }
 
-auto Renderer::createExternalBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties,
-                                    vk::ExternalMemoryHandleTypeFlagsKHR extMemHandleType, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory)
-    -> void {
+auto Renderer::createExternalBuffer(vk::DeviceSize size,
+                                    vk::BufferUsageFlags usage,
+                                    vk::MemoryPropertyFlags properties,
+                                    vk::ExternalMemoryHandleTypeFlagsKHR extMemHandleType,
+                                    vk::Buffer &buffer,
+                                    vk::DeviceMemory &bufferMemory) -> void {
     const auto externalMemoryBufferInfo = vk::ExternalMemoryBufferCreateInfo{.handleTypes = extMemHandleType};
     const auto bufferInfo =
         vk::BufferCreateInfo{.pNext = &externalMemoryBufferInfo, .size = size, .usage = usage, .sharingMode = vk::SharingMode::eExclusive};
@@ -932,7 +1000,10 @@ auto Renderer::createExternalBuffer(vk::DeviceSize size, vk::BufferUsageFlags us
     device.bindBufferMemory(buffer, bufferMemory, 0);
 }
 
-auto Renderer::importExternalMemory(void **cudaPtr, cudaExternalMemory_t &cudaMem, vk::DeviceMemory &vkMem, vk::DeviceSize size,
+auto Renderer::importExternalMemory(void **cudaPtr,
+                                    cudaExternalMemory_t &cudaMem,
+                                    vk::DeviceMemory &vkMem,
+                                    vk::DeviceSize size,
                                     vk::ExternalMemoryHandleTypeFlagBits handleType) -> void {
     cudaExternalMemoryHandleDesc externalMemoryHandleDesc = {.type = cudaExternalMemoryHandleTypeOpaqueFd, .size = size};
     externalMemoryHandleDesc.handle.fd                    = (int)(uintptr_t)getMemHandle(vkMem, handleType);

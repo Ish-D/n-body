@@ -1,6 +1,6 @@
 #include "nBody.h"
 
-__global__ void step(nBody::point *points, unsigned int numPoints, float time) {
+__global__ void step(nBody::Point *points, unsigned int numPoints, float time) {
   const float freq = 4.0f;
   const size_t stride = gridDim.x * blockDim.x;
 
@@ -8,20 +8,16 @@ __global__ void step(nBody::point *points, unsigned int numPoints, float time) {
   for (size_t tid = blockIdx.x * blockDim.x + threadIdx.x; tid < numPoints; tid+= stride) {
     const size_t y = tid / numPoints;
     const size_t x = tid - y * numPoints;
-    // Normalize x, y to [0,1]
+    
     const float u = ((2.0f * x) / numPoints) - 1.0f;
     const float v = ((2.0f * y) / numPoints) - 1.0f;
 
-    const float w = 0.05f * sinf(u * freq + time) * cosf(v * freq + time);
-
-
-    // Store this new value
-    points[tid].x += w;
-    points[tid].y += w;
+    points[tid].pos.x = sinf(u * freq + time);
+    points[tid].pos.y = cosf(v * freq + time);
   }
 }
 
-nBody::nBody(size_t _numPoints, point* _points) : numPoints(_numPoints), points(_points), pointsTemp(_points) {}
+nBody::nBody(size_t _numPoints, Point* _points) : numPoints(_numPoints), points(_points), pointsTemp(_points) {}
 nBody::~nBody() { points = NULL; }
 
 void nBody::initCudaLaunchConfig(int device) {
@@ -29,7 +25,6 @@ void nBody::initCudaLaunchConfig(int device) {
   checkCudaErrors(cudaSetDevice(device));
   checkCudaErrors(cudaGetDeviceProperties(&prop, device));
 
-  // Don't need large block sizes, since there's not much inter-thread communication
   m_threads = prop.warpSize;
 
   // Use  occupancy calculator and fill the gpu as best as we can
@@ -84,12 +79,12 @@ int nBody::initCuda(uint8_t *vkDeviceUUID, size_t UUID_SIZE) {
   return -1;
 }
 
-void nBody::initSimulation(point* _points) {
+void nBody::initSimulation(Point* _points) {
   points = _points;
 }
 
 void nBody::initPoints() {
-  checkCudaErrors(cudaMemcpy(points, pointsTemp, numPoints*sizeof(point), cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(points, pointsTemp, numPoints*sizeof(Point), cudaMemcpyHostToDevice));
 }
 
 void nBody::stepSimulation(float time, cudaStream_t stream) {

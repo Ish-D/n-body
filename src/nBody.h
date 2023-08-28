@@ -11,25 +11,37 @@ class nBody {
     int m_blocks, m_threads;
 
   public:
-    struct point {
-        alignas(4) float x    = 0;
-        alignas(4) float y    = 0;
-        alignas(4) float z    = 0;
-        alignas(4) float size = 20;
+    struct Position {
+        float x = 0;
+        float y = 0;
+        float z = 0;
     };
-    point *points;
-    point* pointsTemp;
 
-    nBody(size_t _numPoints, point *_points);
+    struct Color {
+        float r = 250;
+        float g = 250;
+        float b = 250;
+    };
+
+    struct Point {
+        Position pos{};
+        Color color{};
+        float size = 20;
+    };
+
+    Point *points;
+    Point *pointsTemp;
+
+    nBody(size_t _numPoints, Point *_points);
     ~nBody();
-    void initSimulation(point *_points);
+    void initSimulation(Point *_points);
     void initPoints();
     void stepSimulation(float time, cudaStream_t stream = 0);
     void initCudaLaunchConfig(int device);
     int initCuda(uint8_t *vkDeviceUUID, size_t UUID_SIZE);
 
     size_t getNumPoints() const { return numPoints; }
-    point *getPoints() const { return points; }
+    Point *getPoints() const { return points; }
 };
 
 template <typename T> void check(T result, char const *const func, const char *const file, int const line) {
@@ -51,7 +63,11 @@ inline void __getLastCudaError(const char *errorMessage, const char *file, const
         fprintf(stderr,
                 "%s(%i) : getLastCudaError() CUDA error :"
                 " %s : (%d) %s.\n",
-                file, line, errorMessage, static_cast<int>(err), cudaGetErrorString(err));
+                file,
+                line,
+                errorMessage,
+                static_cast<int>(err),
+                cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 }

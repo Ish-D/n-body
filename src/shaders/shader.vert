@@ -5,14 +5,14 @@ layout(binding = 0) uniform UniformBufferObject {
 	mat4 modelViewProj;
 } ubo;
 
-layout(location = 0) in vec4 point;
+layout(location = 0) in vec3 pos;
+layout(location = 1) in vec3 color;
+layout(location = 2) in float size;
 
 layout(location = 0) out vec3 fragColor;
 
 void main() {
-    
-    gl_Position = ubo.modelViewProj*vec4(point.xyz, 1.0);
-    gl_PointSize = 2*point.w * (1/distance(gl_Position, vec4(point.xyz, 1.0)));
-    float color = (1.0f);
-    fragColor = vec3(color);
+    gl_Position = ubo.modelViewProj*vec4(pos, 1.0);
+    gl_PointSize = 5*size/gl_Position.w;
+    fragColor = color;
 }

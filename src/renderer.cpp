@@ -254,14 +254,13 @@ auto Renderer::createSwapChain() -> void {
 auto Renderer::createImageViews() -> void {
     swapChainImageViews.reserve(swapChainImages.size());
     for (const auto &image : swapChainImages) {
-        vk::ImageViewCreateInfo imageViewCreateInfo{
-            .flags            = vk::ImageViewCreateFlags(),
-            .image            = image,
-            .viewType         = vk::ImageViewType::e2D,
-            .format           = swapChainFormat.format,
-            .components       = vk::ComponentMapping{vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity},
-            .subresourceRange = vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
-        };
+        vk::ImageViewCreateInfo imageViewCreateInfo{.flags    = vk::ImageViewCreateFlags(),
+                                                    .image    = image,
+                                                    .viewType = vk::ImageViewType::e2D,
+                                                    .format   = swapChainFormat.format,
+                                                    .components =
+                                                        vk::ComponentMapping{vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity},
+                                                    .subresourceRange = vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
         swapChainImageViews.push_back(device.createImageView(imageViewCreateInfo));
     }
 }
@@ -296,7 +295,7 @@ auto getVertexDescriptions(std::vector<vk::VertexInputBindingDescription> &verte
     vertexBindingDescriptions.resize(1);
     vertexAttributeDescriptions.resize(3);
 
-    // x,y,z,size
+    // x,y,z
     vertexBindingDescriptions[0].binding   = 0;
     vertexBindingDescriptions[0].stride    = sizeof(Point);
     vertexBindingDescriptions[0].inputRate = vk::VertexInputRate::eVertex;
@@ -304,19 +303,19 @@ auto getVertexDescriptions(std::vector<vk::VertexInputBindingDescription> &verte
     vertexAttributeDescriptions[0].binding  = 0;
     vertexAttributeDescriptions[0].location = 0;
     vertexAttributeDescriptions[0].format   = vk::Format::eR32G32B32Sfloat;
-    vertexAttributeDescriptions[0].offset   = 0;
-
-    // color
-    vertexAttributeDescriptions[1].binding  = 0;
-    vertexAttributeDescriptions[1].location = 1;
-    vertexAttributeDescriptions[1].format   = vk::Format::eR32G32B32Sfloat;
-    vertexAttributeDescriptions[1].offset   = 3 * sizeof(float);
+    vertexAttributeDescriptions[0].offset   = offsetof(Point, pos);
 
     // size
+    vertexAttributeDescriptions[1].binding  = 0;
+    vertexAttributeDescriptions[1].location = 1;
+    vertexAttributeDescriptions[1].format   = vk::Format::eR32Sfloat;
+    vertexAttributeDescriptions[1].offset   = offsetof(Point, size);
+
+    // color
     vertexAttributeDescriptions[2].binding  = 0;
     vertexAttributeDescriptions[2].location = 2;
-    vertexAttributeDescriptions[2].format   = vk::Format::eR32Sfloat;
-    vertexAttributeDescriptions[2].offset   = 6 * sizeof(float);
+    vertexAttributeDescriptions[2].format   = vk::Format::eR32G32B32Sfloat;
+    vertexAttributeDescriptions[2].offset   = offsetof(Point, color);
 }
 
 auto Renderer::createPipeline() -> void {
@@ -367,10 +366,7 @@ auto Renderer::createPipeline() -> void {
     auto inputAssembly = vk::PipelineInputAssemblyStateCreateInfo{.topology = vk::PrimitiveTopology::ePointList, .primitiveRestartEnable = false};
 
     auto viewport = vk::Viewport{0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 1.0f};
-    auto scissor  = vk::Rect2D{
-         {0, 0},
-         swapChainExtent
-    };
+    auto scissor  = vk::Rect2D{{0, 0}, swapChainExtent};
 
     auto viewportState = vk::PipelineViewportStateCreateInfo{.viewportCount = 1, .pViewports = &viewport, .scissorCount = 1, .pScissors = &scissor};
 
@@ -461,12 +457,11 @@ auto Renderer::createDepthResources() -> void {
                 vk::MemoryPropertyFlagBits::eDeviceLocal,
                 depthImage,
                 depthMemory);
-    depthImageView = device.createImageView(vk::ImageViewCreateInfo{
-        .image            = depthImage,
-        .viewType         = vk::ImageViewType::e2D,
-        .format           = depthFormat,
-        .subresourceRange = vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1}
-    });
+    depthImageView =
+        device.createImageView(vk::ImageViewCreateInfo{.image            = depthImage,
+                                                       .viewType         = vk::ImageViewType::e2D,
+                                                       .format           = depthFormat,
+                                                       .subresourceRange = vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1}});
 }
 
 auto Renderer::createUniformBuffers() -> void {
@@ -585,14 +580,12 @@ auto Renderer::createCommandBuffers() -> void {
                                                            .storeOp     = vk::AttachmentStoreOp::eStore,
                                                            .clearValue  = clearValues[1]};
 
-        auto renderingInfo = vk::RenderingInfo{
-            .renderArea           = {{0, 0}, {swapChainExtent.width, swapChainExtent.height}},
-            .layerCount           = 1,
-            .colorAttachmentCount = 1,
-            .pColorAttachments    = &colorAttachment,
-            .pDepthAttachment     = &depthAttachment,
-            .pStencilAttachment   = &depthAttachment
-        };
+        auto renderingInfo = vk::RenderingInfo{.renderArea           = {{0, 0}, {swapChainExtent.width, swapChainExtent.height}},
+                                               .layerCount           = 1,
+                                               .colorAttachmentCount = 1,
+                                               .pColorAttachments    = &colorAttachment,
+                                               .pDepthAttachment     = &depthAttachment,
+                                               .pStencilAttachment   = &depthAttachment};
         commandBuffers[i].beginRendering(&renderingInfo);
         commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
         commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);

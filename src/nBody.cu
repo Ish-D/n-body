@@ -1,20 +1,13 @@
 #include "nBody.h"
 
 __global__ void step(nBody::Point *points, unsigned int numPoints, float time) {
-  const float freq = 4.0f;
+  const float freq = 2.5f;
   const size_t stride = gridDim.x * blockDim.x;
 
   // Iterate through the entire array in a way that is independent of the grid configuration
   for (size_t tid = blockIdx.x * blockDim.x + threadIdx.x; tid < numPoints; tid+= stride) {
-    const size_t y = tid / numPoints;
-    const size_t x = tid - y * numPoints;
-
-    const float u = ((2.0f * x) / numPoints) - 1.0f;
-    const float v = ((2.0f * y) / numPoints) - 1.0f;
-
-    points[tid].pos.x = sinf(u * freq + time);
-    points[tid].pos.y = 1.5*tid/numPoints;
-    // points[tid].pos.y = cosf(v * freq + time);
+    const float w = 0.5f * sinf(points[tid].pos.x * freq + time) * cosf(points[tid].pos.y * freq + time);
+    points[tid].pos.z = w;
   }
 }
 
@@ -65,9 +58,7 @@ int nBody::initCuda(uint8_t *vkDeviceUUID, size_t UUID_SIZE) {
       }
     }
 
-    else {
-      devices_prohibited++;
-    }
+    else devices_prohibited++;
 
     current_device++;
   }

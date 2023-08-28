@@ -18,15 +18,15 @@ class nBody {
     };
 
     struct Color {
-        float r = 250;
-        float g = 250;
-        float b = 250;
+        float r = 0.25;
+        float g = 0.0;
+        float b = 0.8;
     };
 
     struct Point {
         Position pos{};
-        Color color{};
         float size = 20;
+        Color color{};
     };
 
     Point *points;

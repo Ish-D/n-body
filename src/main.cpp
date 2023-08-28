@@ -2,19 +2,9 @@
 
 int main() {
     std::vector<Point> points;
-    // points.reserve(1);
-
+    points.reserve(100);
     for (int i = 0; i < 100; i++) {
-        // points.emplace_back(Point{
-        //     Pos{-0.5f, -0.5f, 0.0f},
-        //     Color{},
-        //     20
-        // });
-        points.emplace_back(Point{
-            Pos{-0.5f, -0.5f,     0.0f},
-            Color{   50,     0, i * 2.0f},
-            50.0f
-        });
+        points.emplace_back(Point{Pos{i / 50.0f - 1, static_cast<float>(i % 10) / 5 - 1, 0.0f}, 40, Color{i / 100.0f, 0.0f, 0.51f}});
     }
 
     nBody sim(points.size(), points.data());

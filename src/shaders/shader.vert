@@ -6,8 +6,8 @@ layout(binding = 0) uniform UniformBufferObject {
 } ubo;
 
 layout(location = 0) in vec3 pos;
-layout(location = 1) in vec3 color;
-layout(location = 2) in float size;
+layout(location = 1) in float size;
+layout(location = 2) in vec3 color;
 
 layout(location = 0) out vec3 fragColor;
 

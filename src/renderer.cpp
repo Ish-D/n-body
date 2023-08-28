@@ -710,7 +710,7 @@ auto Renderer::initInterop() -> void {
     sim.initCudaLaunchConfig(cudaDevice);
     checkCudaErrors(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
 
-    createExternalBuffer(sim.getNumPoints() * sizeof(*points),
+    createExternalBuffer(sim.getNumPoints() * sizeof(Point),
                          vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
                          vk::MemoryPropertyFlagBits::eDeviceLocal,
                          vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd,
@@ -718,7 +718,7 @@ auto Renderer::initInterop() -> void {
                          vertexMemory);
 
     importExternalMemory(
-        (void **)&points, cudaVertMem, vertexMemory, sim.getNumPoints() * sizeof(*points), vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
+        (void **)&points, cudaVertMem, vertexMemory, sim.getNumPoints() * sizeof(Point), vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
 
     sim.initSimulation(points);
 
@@ -726,7 +726,7 @@ auto Renderer::initInterop() -> void {
         void *data;
         vk::Buffer stagingBuffer;
         vk::DeviceMemory stagingMemory;
-        vk::DeviceSize bufferSize = sim.getNumPoints() * sizeof(*points);
+        vk::DeviceSize bufferSize = sim.getNumPoints() * sizeof(Point);
 
         createBuffer(bufferSize,
                      vk::BufferUsageFlagBits::eTransferSrc,
@@ -764,6 +764,7 @@ auto Renderer::initInterop() -> void {
 
     createExternalSemaphore(timelineSemaphore, vk::ExternalSemaphoreHandleTypeFlagBits::eOpaqueFd);
     importExternalSemaphore(cudaTimelineSemaphore, timelineSemaphore, vk::ExternalSemaphoreHandleTypeFlagBits::eOpaqueFd);
+    sim.initPoints();
 }
 
 auto Renderer::updateSync() -> void {
@@ -826,7 +827,6 @@ auto Renderer::drawFrame() -> void {
 
     if (currentFrame == 0) {
         lastTime = startTime;
-        sim.initPoints();
     }
 
     float frame_time = currentTime - lastTime;

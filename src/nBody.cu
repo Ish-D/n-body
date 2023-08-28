@@ -8,12 +8,13 @@ __global__ void step(nBody::Point *points, unsigned int numPoints, float time) {
   for (size_t tid = blockIdx.x * blockDim.x + threadIdx.x; tid < numPoints; tid+= stride) {
     const size_t y = tid / numPoints;
     const size_t x = tid - y * numPoints;
-    
+
     const float u = ((2.0f * x) / numPoints) - 1.0f;
     const float v = ((2.0f * y) / numPoints) - 1.0f;
 
     points[tid].pos.x = sinf(u * freq + time);
-    points[tid].pos.y = cosf(v * freq + time);
+    points[tid].pos.y = 1.5*tid/numPoints;
+    // points[tid].pos.y = cosf(v * freq + time);
   }
 }
 

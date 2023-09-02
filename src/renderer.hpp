@@ -24,7 +24,7 @@
 #include <vector>
 
 using Color = nBody::Color;
-using Pos   = nBody::Position;
+using Pos   = nBody::vec3;
 using Point = nBody::Point;
 
 class Renderer {
@@ -77,6 +77,7 @@ class Renderer {
     static constexpr size_t MAX_FRAMES_IN_FLIGHT = 3;
     const std::string appName                    = "nBody";
     nBody sim;
+    static constexpr float timeStep = 0.0016;
 
     struct UniformBufferObject {
         mat4x4 modelViewProj;

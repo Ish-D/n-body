@@ -11,22 +11,25 @@ class nBody {
     int m_blocks, m_threads;
 
   public:
-    struct Position {
-        float x = 0;
-        float y = 0;
-        float z = 0;
+    struct vec3 {
+        float x = 0.0f;
+        float y = 0.0f;
+        float z = 0.0f;
     };
 
     struct Color {
-        float r = 0.25;
-        float g = 0.0;
-        float b = 0.8;
+        float r = 0.25f;
+        float g = 0.0f;
+        float b = 0.8f;
     };
 
     struct Point {
-        Position pos{};
-        float size = 20;
+        vec3 pos{};
+        float size = 20.0f;
         Color color{};
+
+        vec3 velocity{};
+        vec3 acceleration{};
     };
 
     Point *points;

@@ -627,8 +627,8 @@ auto Renderer::createSyncObjects() -> void {
 auto Renderer::updateUniformBuffer(uint32_t imageIndex) -> void {
     {
         mat4x4 view, proj;
-        vec3 eye    = {1.75f, 1.75f, 1.25f};
-        vec3 center = {0.0f, 0.0f, -0.25f};
+        vec3 eye    = {7.0f, 7.0f, 1.25f};
+        vec3 center = {0.0f, 0.0f, 0.0f};
         vec3 up     = {0.0f, 0.0f, 1.0f};
 
         mat4x4_perspective(proj, (float)degreesToRadians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
@@ -816,13 +816,11 @@ auto Renderer::updateSync() -> void {
 auto Renderer::drawFrame() -> void {
     static float startTime = glfwGetTime();
     float currentTime      = glfwGetTime();
-    float time             = currentTime - startTime;
+    float frame_time       = currentTime - lastTime;
 
     if (currentFrame == 0) {
         lastTime = startTime;
     }
-
-    float frame_time = currentTime - lastTime;
 
     updateSync();
 
@@ -836,13 +834,13 @@ auto Renderer::drawFrame() -> void {
     signalParams.params.fence.value                = signalValue;
 
     checkCudaErrors(cudaWaitExternalSemaphoresAsync(&cudaTimelineSemaphore, &waitParams, 1, stream));
-    sim.stepSimulation(time, stream);
+    sim.stepSimulation(timeStep, stream);
     checkCudaErrors(cudaSignalExternalSemaphoresAsync(&cudaTimelineSemaphore, &signalParams, 1, stream));
 
     waitValue   += 2;
     signalValue += 2;
 
-    if (frame_time > 1) {
+    if (frame_time > 1.0f) {
         // dont output fps first time bc inaccurate high makes written over value ugly
         const float fps = ((currentFrame - lastFrame) / frame_time) > 1000 ? 0 : ((currentFrame - lastFrame) / frame_time);
 
